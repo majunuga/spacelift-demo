@@ -34,13 +34,13 @@ resource "tls_private_key" "ssh_key" {
   rsa_bits  = 4096
 }
 
-# Create AWS Key Pair
+# Create AWS key pair
 resource "aws_key_pair" "ssh_key" {
   key_name   = "ec2-demo-${random_id.suffix.hex}"
   public_key = tls_private_key.ssh_key.public_key_openssh
 }
 
-# Ubuntu 20.04 AMI
+# Ubuntu 20.04 LTS AMI
 data "aws_ami" "ubuntu" {
   most_recent = true
 
@@ -67,7 +67,7 @@ data "aws_vpc" "default" {
   default = true
 }
 
-# Default Subnets
+# Default subnets
 data "aws_subnets" "default" {
   filter {
     name   = "vpc-id"
@@ -78,20 +78,27 @@ data "aws_subnets" "default" {
 # Security Group
 resource "aws_security_group" "ssh" {
   name_prefix = "allow-ssh-"
+  description = "Allow SSH and HTTP"
+
+  vpc_id = data.aws_vpc.default.id
 
   ingress {
-    description = "SSH Access"
+    description = "SSH"
+
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
+
     cidr_blocks = ["0.0.0.0/0"]
   }
 
   ingress {
-    description = "HTTP Access"
+    description = "HTTP"
+
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
+
     cidr_blocks = ["0.0.0.0/0"]
   }
 
@@ -99,13 +106,12 @@ resource "aws_security_group" "ssh" {
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
+
     cidr_blocks = ["0.0.0.0/0"]
   }
-
-  vpc_id = data.aws_vpc.default.id
 }
 
-# Instance definitions
+# EC2 Instances
 locals {
   instances = {
     instance1 = {
@@ -116,4 +122,25 @@ locals {
       instance_type = "t3.micro"
     }
 
-    instance3
+    instance3 = {
+      instance_type = "t3.micro"
+    }
+
+    instance4 = {
+      instance_type = "t3.micro"
+    }
+  }
+}
+
+# Launch instances
+resource "aws_instance" "this" {
+  for_each = local.instances
+
+  ami           = data.aws_ami.ubuntu.id
+  instance_type = each.value.instance_type
+
+  subnet_id              = data.aws_subnets.default.ids[0]
+  key_name               = aws_key_pair.ssh_key.key_name
+  vpc_security_group_ids = [aws_security_group.ssh.id]
+
+  
