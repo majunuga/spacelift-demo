@@ -142,5 +142,6 @@ resource "aws_instance" "this" {
   subnet_id              = data.aws_subnets.default.ids[0]
   key_name               = aws_key_pair.ssh_key.key_name
   vpc_security_group_ids = [aws_security_group.ssh.id]
+}
 
   
